@@ -1,0 +1,29 @@
+{
+  "name": "pi-skill-conflict-filter",
+  "version": "0.1.0",
+  "description": "A pi extension that hides duplicate skill collision diagnostics from the startup TUI.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "skills",
+    "tui"
+  ],
+  "scripts": {
+    "test": "node --test skill-conflict-filter.test.mjs"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/skill-conflict-filter.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "files": [
+    "extensions/",
+    "README.md",
+    "LICENSE"
+  ]
+}
