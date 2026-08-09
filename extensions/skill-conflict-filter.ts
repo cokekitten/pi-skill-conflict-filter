@@ -173,23 +173,38 @@ export async function retainPatch(): Promise<() => Promise<void>> {
   };
 }
 
+function isStaleCtxError(error: unknown): boolean {
+  return /stale after session replacement|extension ctx is stale/i.test(
+    error instanceof Error ? error.message : String(error),
+  );
+}
+
 export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
-    if (ctx.mode !== "tui") return;
-
-    const state = getState();
-    if (state.cleanup && state.release) return;
-
+    // Never throw from session_start — pi paints a red stack into the chat
+    // for every failed extension handler, including "ctx is stale after
+    // session replacement" races during rebind/init.
     try {
+      if (ctx.mode !== "tui") return;
+
+      const state = getState();
+      // Patches are process-global. Keep across resume; only reinstall when missing.
+      if (state.cleanup && state.release) return;
+
       state.release = await retainPatch();
     } catch (error) {
-      if (ctx.hasUI) {
-        ctx.ui.notify(
-          `skill-conflict-filter: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-          "warning",
-        );
+      if (isStaleCtxError(error)) return;
+      try {
+        if (ctx.hasUI) {
+          ctx.ui.notify(
+            `skill-conflict-filter: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+            "warning",
+          );
+        }
+      } catch {
+        /* ignore notify failures (including stale ctx) */
       }
     }
   });
@@ -199,7 +214,11 @@ export default function (pi: ExtensionAPI) {
       (event.reason === "reload" || event.reason === "quit") &&
       getState().release
     ) {
-      await getState().release?.();
+      try {
+        await getState().release?.();
+      } catch {
+        /* ignore */
+      }
     }
   });
 }
