@@ -1,5 +1,3 @@
-import { dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 type SkillDiagnostic = {
@@ -80,8 +78,6 @@ export function createPatchedShowLoadedResources(
   };
 }
 
-const INTERACTIVE_MODE_MODULE =
-  "dist/modes/interactive/interactive-mode.js";
 const STATE_KEY = Symbol.for("pi-skill-conflict-filter.state");
 
 type InteractiveModePrototype = {
@@ -103,17 +99,12 @@ function getState(): PatchState {
   return values[STATE_KEY];
 }
 
-function getPackageRoot(packageName: string): string {
-  const entryPath = fileURLToPath(import.meta.resolve(packageName));
-  return dirname(dirname(entryPath));
-}
-
 async function importInteractiveMode(): Promise<{
   prototype: InteractiveModePrototype;
 }> {
-  const root = getPackageRoot("@earendil-works/pi-coding-agent");
-  const moduleUrl = pathToFileURL(join(root, INTERACTIVE_MODE_MODULE)).href;
-  const module = (await import(moduleUrl)) as {
+  // Import through pi's extension loader (jiti alias / virtualModules) so the
+  // class resolves to the running instance under both dist and bundled builds.
+  const module = (await import("@earendil-works/pi-coding-agent")) as {
     InteractiveMode?: { prototype: InteractiveModePrototype };
   };
   if (!module.InteractiveMode?.prototype) {

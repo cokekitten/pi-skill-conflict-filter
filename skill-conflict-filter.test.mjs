@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { pathToFileURL } from "node:url";
@@ -92,7 +92,19 @@ describe("createPatchedShowLoadedResources", () => {
 
 function resolvePiPackageRoot() {
   const piBin = execFileSync("which", ["pi"], { encoding: "utf8" }).trim();
-  return dirname(dirname(realpathSync(piBin)));
+  let dir = dirname(realpathSync(piBin));
+  for (;;) {
+    const manifest = join(dir, "package.json");
+    if (existsSync(manifest)) {
+      const pkg = JSON.parse(readFileSync(manifest, "utf8"));
+      if (pkg.name === "@earendil-works/pi-coding-agent") return dir;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      throw new Error("pi package root not found from " + piBin);
+    }
+    dir = parent;
+  }
 }
 
 async function loadPiInternals() {
